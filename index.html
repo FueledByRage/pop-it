@@ -29,17 +29,53 @@
       font-size: 16px;
       z-index: 10;
     }
+
+    #rotate-warning {
+    position: fixed;
+    inset: 0;
+    background: #111;
+    color: white;
+    font-size: 24px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    z-index: 10;
+  }
+
+  @media screen and (orientation: portrait) {
+    #game {
+      display: none;
+    }
+
+    #hud {
+      display: none;
+    }
+
+    #rotate-warning {
+      display: flex;
+    }
+  }
   </style>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 </head>
 <body>
 
-  <div id="hud">
-    <div id="score">Score: 0</div>
-    <div id="time">Time: 0s</div>
-    <div id="lives">Lives: 0s</div>
+<body>
+  <div id="rotate-warning">
+    Vire o celular para jogar ▶️
   </div>
 
   <canvas id="game"></canvas>
+  <img id="spriteSheet" src="./public/player.png" style="display: none;">
+  <div id="hud">
+    <span id="score"></span>
+    <span id="time"></span>
+    <span id="lives"></span>
+  </div>
+</body>
+
 
   <script src="index.js"></script>
 </body>

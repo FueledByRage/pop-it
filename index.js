@@ -1,6 +1,38 @@
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
+const playerImage = new Image();
+playerImage.src = "./public/player.png";
+const PLAYER_HIT_RADIUS = 80;
+let playerKnockback = { x: 0, y: 0, time: 0 };
+let playerReady = false;
+
+playerImage.onload = () => {
+  console.log("player carregado");
+  playerReady = true;
+};
+
+playerImage.onerror = () => {
+  console.error("erro ao carregar player");
+};
+
+const player = {
+  state: "idle",
+  frame: 0,
+  frameWidth: 1390 / 4,
+  frameHeight: 461,
+};
+
+const PLAYER_FRAMES = {
+  idle: 0,
+  down: 1,
+  up: 2,
+  dead: 3,
+};
+
+const STROKE_COLORS = ['#ff3b3b', '#ffd93b', '#3b82ff'];
+let strokeColor = STROKE_COLORS[0];
+
 function resize() {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
@@ -95,8 +127,8 @@ function drawShape(shape) {
   }
 
   if (shape.type === 'line') {
-    ctx.moveTo(-shape.size, 0);
-    ctx.lineTo(shape.size, 0);
+    ctx.moveTo(0, -shape.size);
+    ctx.lineTo(0, shape.size);
   }
 
   if (shape.type === 'v') {
@@ -133,6 +165,10 @@ const MIN_DIST = 4;
 canvas.addEventListener('pointerdown', e => {
   isDrawing = true;
   stroke = [];
+
+  strokeColor =
+    STROKE_COLORS[Math.floor(Math.random() * STROKE_COLORS.length)];
+
   addPoint(e);
 });
 
@@ -163,6 +199,19 @@ function finishStroke() {
 
   const type = classifyStroke(stroke);
 
+  const direction = getStrokeDirection(stroke);
+  if (direction && player.state !== "dead") {
+    player.state = direction;
+    player.frame = PLAYER_FRAMES[direction];
+
+    setTimeout(() => {
+      if (player.state !== "dead") {
+        player.state = "idle";
+        player.frame = PLAYER_FRAMES.idle;
+      }
+    }, 200);
+  }
+
   if (type) {
     const index = shapes.findIndex(s => s.type === type);
     if (index !== -1) {
@@ -174,7 +223,6 @@ function finishStroke() {
   stroke = [];
 }
 
-
 function drawStroke() {
   if (stroke.length < 2) return;
 
@@ -185,7 +233,7 @@ function drawStroke() {
     ctx.lineTo(stroke[i].x, stroke[i].y);
   }
 
-  ctx.strokeStyle = '#000';
+  ctx.strokeStyle = strokeColor;
   ctx.lineWidth = 4;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -213,20 +261,34 @@ function loop(now) {
   for (let i = shapes.length - 1; i >= 0; i--) {
     const shape = shapes[i];
 
-    const reachedCenter = moveShape(shape);
+    moveShape(shape);
 
-    if (reachedCenter) {
+    const hitPlayer = checkPlayerCollision(shape);
+    console.log(hitPlayer)
+    if (hitPlayer && lives > 0) {
       shapes.splice(i, 1);
       lives--;
+      applyKnockback(shape.x, shape.y);
       continue;
     }
 
     drawShape(shape);
   }
-
+  
+  if (lives <= 0) {
+    player.state = "dead";
+    player.frame = PLAYER_FRAMES.dead;
+  }
 
   drawStroke();
+  drawPlayer();
   updateHUD();
+  
+  if (playerKnockback.time > 0) {
+    playerKnockback.time -= delta;
+    playerKnockback.x *= 0.9;
+    playerKnockback.y *= 0.9;
+  }
 
   requestAnimationFrame(loop);
 }
@@ -331,4 +393,92 @@ function classifyStroke(rawPoints) {
   if (isV(points)) return 'v';
 
   return null;
+}
+
+
+function getStrokeDirection(points) {
+  if (points.length < 2) return null;
+
+  const start = points[0];
+  const end = points[points.length - 1];
+
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+
+  if (Math.abs(dy) > Math.abs(dx)) {
+    return dy > 0 ? "down" : "up";
+  }
+
+  return null;
+}
+
+function updatePlayer(delta) {
+  player.frameTimer += delta;
+
+  if (player.frameTimer >= player.frameInterval) {
+    player.frameTimer = 0;
+    player.frame++;
+
+    if (player.frame >= player.frameCount) {
+      if (player.state !== "idle") {
+        player.state = "idle";
+        player.row = ANIMATION_ROWS.idle;
+      }
+
+      player.frame = 0;
+    }
+  }
+}
+
+function triggerPlayerAnimation(direction) {
+  player.state = direction;
+  player.row = ANIMATION_ROWS[direction];
+  player.frame = 0;
+  player.frameTimer = 0;
+}
+
+function drawPlayer() {
+  if (!playerReady) return;
+
+  const cx = CENTER.x();
+  const cy = CENTER.y();
+
+  const sx = player.frame * player.frameWidth;
+  const sy = 0;
+
+  const PLAYER_TARGET_HEIGHT = 330;
+  const scale = PLAYER_TARGET_HEIGHT / player.frameHeight;
+
+  const drawW = player.frameWidth * scale;
+  const drawH = player.frameHeight * scale;
+
+  ctx.drawImage(
+    playerImage,
+    sx,
+    sy,
+    player.frameWidth,
+    player.frameHeight,
+    cx - (player.frameWidth * scale) / 2,
+    cy - (player.frameHeight * scale) / 2,
+    drawW,
+    drawH
+  );
+}
+
+function checkPlayerCollision(shape) {
+  const dx = shape.x - CENTER.x();
+  const dy = shape.y - CENTER.y();
+  const dist = Math.hypot(dx, dy);
+
+  return dist < PLAYER_HIT_RADIUS;
+}
+
+function applyKnockback(fromX, fromY) {
+  const dx = CENTER.x() - fromX;
+  const dy = CENTER.y() - fromY;
+  const dist = Math.hypot(dx, dy) || 1;
+
+  playerKnockback.x = (dx / dist) * 20;
+  playerKnockback.y = (dy / dist) * 20;
+  playerKnockback.time = 150;
 }
