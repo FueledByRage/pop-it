@@ -156,6 +156,24 @@
       font-weight: bold;
       font-family: serif;
     }
+
+    #game-over-screen {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: none; /* Começa escondido */
+      align-items: center;
+      justify-content: center;
+      z-index: 110;
+      font-family: sans-serif;
+    }
+
+    #final-score-text {
+      font-size: 24px;
+      font-weight: bold;
+      color: #ff3b3b;
+      margin: 20px 0;
+    }
   </style>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -188,6 +206,14 @@
         <button id="start-button">COMEÇAR JOGO</button>
       </div>
     </div>
+
+    <div id="game-over-screen" style="display: none;">
+    <div class="popup">
+      <h1>Fim de Jogo!</h1>
+      <p id="final-score-text">Você fez 0 pontos</p>
+      <button id="restart-button">JOGAR NOVAMENTE</button>
+    </div>
+  </div>
   </body>
 
 

@@ -42,8 +42,8 @@ const player = {
 
 const PLAYER_FRAMES = {
   idle: 0,
-  action1: 1, // Antigo 'down'
-  action2: 2, // Antigo 'up'
+  action1: 1, //'down'
+  action2: 2, //'up'
   dead: 3,
 };
 
@@ -58,6 +58,22 @@ document.getElementById('start-button').addEventListener('click', () => {
   if (bgMusic.paused) {
     bgMusic.play().catch(e => console.log("Áudio aguardando interação"));
   }
+});
+
+document.getElementById('restart-button').addEventListener('click', () => {
+  lives = 2;
+  score = 0;
+  startTime = performance.now();
+  lastSpawn = 0;
+  shapes.length = 0;
+  gameOverTriggered = false;
+  
+  player.state = "idle";
+  player.frame = PLAYER_FRAMES.idle;
+
+  document.getElementById('game-over-screen').style.display = 'none';
+  bgMusic.currentTime = 0;
+  bgMusic.play();
 });
 
 function resize() {
@@ -241,7 +257,6 @@ function loop(now) {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // 3. Início do Shake (Tudo dentro daqui treme)
   ctx.save();
   if (screenShake > 0) {
     const shakeX = (Math.random() - 0.5) * screenShake;
@@ -267,12 +282,21 @@ function loop(now) {
       }
       drawShape(shape);
     }
-  } else if (!gameOverTriggered) {
+  }
+  
+  if (lives <= 0 && !gameOverTriggered) {
     player.state = "dead";
     player.frame = PLAYER_FRAMES.dead;
+    
     bgMusic.pause();
     sfxDefeat.play();
+    
     gameOverTriggered = true;
+
+    setTimeout(() => {
+      document.getElementById('final-score-text').textContent = `Você fez ${score} pontos!`;
+      document.getElementById('game-over-screen').style.display = 'flex';
+    }, 1000);
   }
 
   drawStroke();
