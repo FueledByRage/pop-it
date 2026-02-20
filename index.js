@@ -1,5 +1,6 @@
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
+let gameStarted = false;
 
 const sfxPop = new Audio('./public/pop.mp3');
 const sfxDefeat = new Audio('./public/defeat.wav');
@@ -30,6 +31,8 @@ playerImage.onload = () => {
   playerReady = true;
 };
 
+let playerHitRadius = 80;
+
 const player = {
   state: "idle",
   frame: 0,
@@ -46,6 +49,16 @@ const PLAYER_FRAMES = {
 
 const STROKE_COLORS = ['#ff3b3b', '#ffd93b', '#3b82ff'];
 let strokeColor = STROKE_COLORS[0];
+
+document.getElementById('start-button').addEventListener('click', () => {
+  document.getElementById('start-screen').style.display = 'none';
+  gameStarted = true;
+  startTime = performance.now();
+  
+  if (bgMusic.paused) {
+    bgMusic.play().catch(e => console.log("Áudio aguardando interação"));
+  }
+});
 
 function resize() {
   const dpr = window.devicePixelRatio || 1;
@@ -88,18 +101,27 @@ const SHAPE_TYPES = ['circle', 'line', 'v'];
 
 function spawnShape() {
   if (shapes.length >= MAX_SHAPES) return;
+
+  const viewportMin = Math.min(canvas.width, canvas.height) / (window.devicePixelRatio || 1);
+  
+  const baseSize = viewportMin * 0.05; 
+  const randomVariation = viewportMin * 0.03;
+
   const angle = Math.random() * Math.PI * 2;
-  const minRadius = Math.min(canvas.width, canvas.height) * 0.35;
-  const maxRadius = Math.min(canvas.width, canvas.height) * 0.45;
+  const minRadius = viewportMin * 0.35;
+  const maxRadius = viewportMin * 0.45;
   const radius = minRadius + Math.random() * (maxRadius - minRadius);
+
+  const difficulty = getDifficulty();
 
   shapes.push({
     id: crypto.randomUUID(),
     type: SHAPE_TYPES[Math.floor(Math.random() * SHAPE_TYPES.length)],
     x: CENTER.x() + Math.cos(angle) * radius,
     y: CENTER.y() + Math.sin(angle) * radius,
-    size: 30 + Math.random() * 20,
-    speed: MIN_SPEED + (MAX_SPEED - MIN_SPEED) * getDifficulty(),
+    size: baseSize + Math.random() * randomVariation,
+    strokeColor: STROKE_COLORS[Math.floor(Math.random() * STROKE_COLORS.length)],
+    speed: (MIN_SPEED + (MAX_SPEED - MIN_SPEED) * difficulty) * (viewportMin / 500),
   });
 }
 
@@ -116,7 +138,7 @@ function handleSpawn(delta) {
 function drawShape(shape) {
   ctx.save();
   ctx.translate(shape.x, shape.y);
-  ctx.strokeStyle = '#333';
+  ctx.strokeStyle = shape.strokeColor;
   ctx.lineWidth = 4;
   ctx.lineCap = 'round';
   ctx.beginPath();
@@ -207,57 +229,60 @@ function drawFlash() {
 }
 
 function loop(now) {
+  if (!gameStarted) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawPlayer();
+    requestAnimationFrame(loop);
+    return;
+  }
+
   const delta = now - (window.lastTime || now);
   window.lastTime = now;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Aplica Tremida (Shake) no contexto
+  // 3. Início do Shake (Tudo dentro daqui treme)
   ctx.save();
   if (screenShake > 0) {
     const shakeX = (Math.random() - 0.5) * screenShake;
     const shakeY = (Math.random() - 0.5) * screenShake;
     ctx.translate(shakeX, shakeY);
-    screenShake *= 0.9; // Diminui a tremedeira
+    screenShake *= 0.9; 
     if (screenShake < 0.5) screenShake = 0;
   }
 
-  handleSpawn(delta);
+  if (lives > 0) {
+    handleSpawn(delta);
 
-  for (let i = shapes.length - 1; i >= 0; i--) {
-    const shape = shapes[i];
-    moveShape(shape);
+    for (let i = shapes.length - 1; i >= 0; i--) {
+      const shape = shapes[i];
+      moveShape(shape);
 
-    if (checkPlayerCollision(shape) && lives > 0) {
-      shapes.splice(i, 1);
-      lives--;
-      // Ativa os feedbacks visuais
-      screenShake = 15;
-      flashOpacity = 0.4;
-      continue;
+      if (checkPlayerCollision(shape)) {
+        shapes.splice(i, 1);
+        lives--;
+        screenShake = 15;
+        flashOpacity = 0.4;
+        continue;
+      }
+      drawShape(shape);
     }
-    drawShape(shape);
-  }
-  
-  if (lives <= 0 && !gameOverTriggered) {
+  } else if (!gameOverTriggered) {
     player.state = "dead";
     player.frame = PLAYER_FRAMES.dead;
-
-    player.state = "dead";
-    player.frame = PLAYER_FRAMES.dead;
-    
     bgMusic.pause();
     sfxDefeat.play();
-    
     gameOverTriggered = true;
   }
 
   drawStroke();
   drawPlayer();
-  ctx.restore(); // Fim da área afetada pelo Shake
+  ctx.restore(); // Fim do Shake
 
-  drawFlash(); // Flash desenhado por cima de tudo
+  drawFlash();
+  drawHearts();
   updateHUD();
+
   requestAnimationFrame(loop);
 }
 
@@ -274,9 +299,9 @@ function normalizePoints(points) {
 function classifyStroke(rawPoints) {
   if (rawPoints.length < 8) return null;
   const points = normalizePoints(rawPoints);
+  if (isV(rawPoints)) return 'v';
   if (isCircle(points)) return 'circle';
   if (isLine(points)) return 'line';
-  if (isV(points)) return 'v';
   return null;
 }
 
@@ -289,15 +314,27 @@ function isLine(points) {
 }
 
 function isV(points) {
-  let turns = 0;
-  for (let i = 2; i < points.length - 2; i++) {
-    const p0 = points[i - 2], p1 = points[i], p2 = points[i + 2];
-    const v1 = { x: p1.x - p0.x, y: p1.y - p0.y }, v2 = { x: p2.x - p1.x, y: p2.y - p1.y };
-    const dot = v1.x * v2.x + v1.y * v2.y;
-    const mag = Math.hypot(v1.x, v1.y) * Math.hypot(v2.x, v2.y);
-    if (mag > 0 && Math.acos(dot / mag) > Math.PI / 3) turns++;
-  }
-  return turns >= 1 && turns < 5;
+  if (points.length < 5) return false;
+
+  const ys = points.map(p => p.y);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const height = maxY - minY;
+
+  if (height < 20) return false; 
+
+  const segmentSize = Math.floor(points.length / 3);
+  const p1 = points[0]; // Início
+  const p2 = points[Math.floor(points.length / 2)]; // Meio (Aproximado)
+  const p3 = points[points.length - 1]; // Fim
+
+  const midIsLowerThanStart = p2.y > p1.y + (height * 0.2);
+  const midIsLowerThanEnd = p2.y > p3.y + (height * 0.2);
+
+  const distStartEnd = Math.hypot(p3.x - p1.x, p3.y - p1.y);
+  const isNotCircle = distStartEnd > height * 0.3;
+
+  return midIsLowerThanStart && midIsLowerThanEnd && isNotCircle;
 }
 
 function isCircle(points) {
@@ -317,11 +354,17 @@ function drawPlayer() {
   const scale = targetHeight / player.frameHeight;
   const drawW = player.frameWidth * scale, drawH = player.frameHeight * scale;
 
+  playerHitRadius = drawH * 0.25;
+
   ctx.drawImage(playerImage, sx, 0, player.frameWidth, player.frameHeight, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
 }
 
 function checkPlayerCollision(shape) {
-  return Math.hypot(shape.x - CENTER.x(), shape.y - CENTER.y()) < PLAYER_HIT_RADIUS;
+  const dx = shape.x - CENTER.x();
+  const dy = shape.y - CENTER.y();
+  const dist = Math.hypot(dx, dy);
+
+  return dist < (playerHitRadius + shape.size * 0.8);
 }
 
 function updateHUD() {
