@@ -1,0 +1,27 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Injetar Env Vars no JS
+        run: |
+          # Substitui nos arquivos onde você usa o Supabase
+          # Se o ranking.html também tiver script inline com as chaves, adicione-o aqui
+          sed -i "s|process.env.SUPABASE_URL|${{ secrets.SUPABASE_URL }}|g" index.js
+          sed -i "s|process.env.SUPABASE_KEY|${{ secrets.SUPABASE_KEY }}|g" index.js
+
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: .
+          branch: gh-pages
+          clean: true
