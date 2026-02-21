@@ -4,7 +4,7 @@ let gameStarted = false;
 
 const sfxPop = new Audio('./public/pop.mp3');
 const sfxDefeat = new Audio('./public/defeat.wav');
-const bgMusic = new Audio('./public/level.wav');
+const bgMusic = new Audio('./public/level.mp3');
 
 let gameOverTriggered = false;
 
@@ -108,7 +108,7 @@ const CENTER = {
 
 const MAX_SHAPES = 6;
 const shapes = [];
-let lives = 8;
+let lives = 2;
 let score = 0;
 let startTime = performance.now();
 
@@ -227,7 +227,7 @@ function finishStroke() {
       shapes.splice(index, 1);
       score += 10;
 
-      sfxPop.currentTime = 0; // Reinicia o som caso ele já esteja tocando
+      sfxPop.currentTime = 0;
       sfxPop.play();
     }
   }
@@ -318,6 +318,7 @@ function loop(now) {
     setTimeout(() => {
       document.getElementById('final-score-text').textContent = `Você fez ${score} pontos!`;
       document.getElementById('game-over-screen').style.display = 'flex';
+      loadGameOverRanking();
     }, 1000);
   }
 
@@ -515,14 +516,14 @@ async function saveScore(score) {
   if (!playerId) return;
 
   const { data, error } = await supabaseClient
-    .select("score")
     .from("scores")
+    .select("score")
     .eq("id", playerId)
     .single();
-
-  if (error) return;
-
-  if (score > data.score) {
+    
+    if (error) return;
+    
+    if (score > data.score) {
     await supabaseClient
       .from("scores")
       .update({ score })
@@ -567,6 +568,42 @@ async function checkExistingPlayer() {
 
   const input = document.getElementById("player-name-input");
   if (input) input.value = data.player_name;
+}
+
+async function loadGameOverRanking() {
+  const list = document.getElementById("gameOverRankingList");
+  list.innerHTML = "<li>Carregando...</li>";
+
+  const { data, error } = await supabaseClient
+    .from("scores")
+    .select("id, player_name, score")
+    .order("score", { ascending: false })
+    .limit(5);
+
+  if (error) {
+    list.innerHTML = "<li>Erro ao carregar ranking</li>";
+    console.error(error);
+    return;
+  }
+
+  list.innerHTML = "";
+
+  const currentPlayerId = localStorage.getItem("player_id");
+
+  data.forEach((player, index) => {
+    const li = document.createElement("li");
+
+    if (player.id == currentPlayerId) {
+      li.classList.add("highlight");
+    }
+
+    li.innerHTML = `
+      <span>#${index + 1} ${player.player_name}</span>
+      <span>${player.score}</span>
+    `;
+
+    list.appendChild(li);
+  });
 }
 
 checkExistingPlayer();
