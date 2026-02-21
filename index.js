@@ -50,18 +50,26 @@ const PLAYER_FRAMES = {
 const STROKE_COLORS = ['#ff3b3b', '#ffd93b', '#3b82ff'];
 let strokeColor = STROKE_COLORS[0];
 
-document.getElementById('start-button').addEventListener('click', () => {
-  document.getElementById('start-screen').style.display = 'none';
-  gameStarted = true;
-  startTime = performance.now();
-  
-  if (bgMusic.paused) {
-    bgMusic.play().catch(e => console.log("Áudio aguardando interação"));
-  }
-});
+const bgImage = new Image();
+bgImage.src = "./public/background.png";
+
+let bgReady = false;
+bgImage.onload = () => bgReady = true;
+
+const supabaseUrl = "process.env.SUPABASE_URL";
+const supabaseKey = "process.env.SUPABASE_KEY";
+
+const supabaseClient = supabase.createClient(
+  supabaseUrl,
+  supabaseKey
+);
+
+let currentPlayerName = "Anônimo";
+
+document.getElementById('start-button').addEventListener('click', handleStartGame);
 
 document.getElementById('restart-button').addEventListener('click', () => {
-  lives = 2;
+  lives = 8;
   score = 0;
   startTime = performance.now();
   lastSpawn = 0;
@@ -107,6 +115,9 @@ let startTime = performance.now();
 const TIME_TO_MAX = 120;
 const MIN_SPEED = 0.4;
 const MAX_SPEED = 2.2;
+
+let isDrawing = false;
+let stroke = [];
 
 function getDifficulty() {
   const elapsed = (performance.now() - startTime) / 1000;
@@ -155,7 +166,7 @@ function drawShape(shape) {
   ctx.save();
   ctx.translate(shape.x, shape.y);
   ctx.strokeStyle = shape.strokeColor;
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 8;
   ctx.lineCap = 'round';
   ctx.beginPath();
   if (shape.type === 'circle') ctx.arc(0, 0, shape.size, 0, Math.PI * 2);
@@ -177,9 +188,6 @@ function moveShape(shape) {
   shape.y += (dy / dist) * shape.speed;
 }
 
-let isDrawing = false;
-let stroke = [];
-
 canvas.addEventListener('pointerdown', e => {
   if (bgMusic.paused && lives > 0) {
     bgMusic.play().catch(err => console.log("Aguardando interação para áudio"));
@@ -192,6 +200,13 @@ canvas.addEventListener('pointerdown', e => {
 
 canvas.addEventListener('pointermove', e => { if (isDrawing) addPoint(e); });
 canvas.addEventListener('pointerup', finishStroke);
+
+function drawBackground() {
+  const canvasW = canvas.width / (window.devicePixelRatio || 1);
+  const canvasH = canvas.height / (window.devicePixelRatio || 1);
+
+  ctx.drawImage(bgImage, 0, 0, canvasW, canvasH);
+}
 
 function addPoint(e) {
   const rect = canvas.getBoundingClientRect();
@@ -255,7 +270,9 @@ function loop(now) {
   const delta = now - (window.lastTime || now);
   window.lastTime = now;
 
+  ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawBackground();
 
   ctx.save();
   if (screenShake > 0) {
@@ -285,6 +302,11 @@ function loop(now) {
   }
   
   if (lives <= 0 && !gameOverTriggered) {
+    const savePlayerScore =  async () =>{
+      await saveScore(score);
+    }
+
+    savePlayerScore();
     player.state = "dead";
     player.frame = PLAYER_FRAMES.dead;
     
@@ -420,4 +442,132 @@ function drawHearts() {
   }
 }
 
+async function handleStartGame() {
+  const existingId = localStorage.getItem("player_id");
+
+  if (existingId) {
+    const { data, error } = await supabaseClient
+      .from("scores")
+      .select("id, player_name")
+      .eq("id", existingId)
+      .single();
+
+    if (!error && data) {
+      currentPlayerName = data.player_name;
+      startGame();
+      return;
+    }
+
+    localStorage.removeItem("player_id");
+  }
+
+  const input = document.getElementById("player-name-input");
+  const playerName = input.value.trim();
+
+  if (!playerName) {
+    showMessage("Digite um nome válido", "error");
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("scores")
+    .insert([{ player_name: playerName, score: 0 }])
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      showMessage("Esse nome já está em uso 😢", "error");
+      return;
+    }
+
+    showMessage("Erro ao criar jogador", "error");
+    return;
+  }
+
+  localStorage.setItem("player_id", data.id);
+  currentPlayerName = data.player_name;
+
+  startGame();
+}
+
+function startGame() {
+  document.getElementById('start-screen').style.display = 'none';
+
+  gameStarted = true;
+  startTime = performance.now();
+
+  if (bgMusic.paused) {
+    bgMusic.play().catch(e => 
+      console.log("Áudio aguardando interação")
+    );
+  }
+}
+
+function showMessage(text, type) {
+  const message = document.getElementById("playerMessage");
+  message.textContent = text;
+  message.className = `message ${type}`;
+}
+
+async function saveScore(score) {
+  const playerId = localStorage.getItem("player_id");
+  if (!playerId) return;
+
+  const { data, error } = await supabaseClient
+    .select("score")
+    .from("scores")
+    .eq("id", playerId)
+    .single();
+
+  if (error) return;
+
+  if (score > data.score) {
+    await supabaseClient
+      .from("scores")
+      .update({ score })
+      .eq("id", playerId);
+  }
+}
+
+async function getLeaderboard(limit = 5) {
+  const { data, error } = await supabaseClient
+    .from("scores")
+    .select("player_name, score")
+    .order("score", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error(error);
+    return [];
+  }
+
+  return data;
+}
+
+async function checkExistingPlayer() {
+  const playerId = localStorage.getItem("player_id");
+
+  if (!playerId) return;
+
+  const { data, error } = await supabaseClient
+    .from("scores")
+    .select("player_name, score")
+    .eq("id", playerId)
+    .single();
+
+  if (error || !data) {
+    localStorage.removeItem("player_id");
+    return;
+  }
+
+  currentPlayerName = data.player_name;
+
+  showMessage(`Olá, ${data.player_name} 👋`, "success");
+
+  const input = document.getElementById("player-name-input");
+  if (input) input.value = data.player_name;
+}
+
+checkExistingPlayer();
 requestAnimationFrame(loop);
