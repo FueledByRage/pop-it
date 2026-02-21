@@ -147,6 +147,17 @@
     }
 
     .popup {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 24px;
+      border-radius: 20px;
+      text-align: center;
+
+      width: 100%;
+      max-width: 420px;
+      max-height: 90vh;
+      overflow-y: auto;
+
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
       animation: slideUp 0.5s ease-out;
     }
 
@@ -162,11 +173,14 @@
       inset: 0;
       background: rgba(0, 0, 0, 0.85);
       display: none;
-      /* Começa escondido */
       align-items: center;
       justify-content: center;
       z-index: 110;
       font-family: sans-serif;
+
+      padding: 20px;
+      box-sizing: border-box;
+      overflow-y: auto;
     }
 
     #final-score-text {
@@ -228,9 +242,13 @@
     background: #27F58722;
     font-weight: bold;
   }
-  </style>
 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  #game-over-ranking {
+    max-height: 35vh;
+    overflow-y: auto;
+  }
+  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 </head>
 
 <body>
