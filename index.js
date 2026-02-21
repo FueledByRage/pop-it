@@ -69,7 +69,7 @@ let currentPlayerName = "Anônimo";
 document.getElementById('start-button').addEventListener('click', handleStartGame);
 
 document.getElementById('restart-button').addEventListener('click', () => {
-  lives = 8;
+  lives = 5;
   score = 0;
   startTime = performance.now();
   lastSpawn = 0;
@@ -108,7 +108,7 @@ const CENTER = {
 
 const MAX_SHAPES = 6;
 const shapes = [];
-let lives = 2;
+let lives = 5;
 let score = 0;
 let startTime = performance.now();
 
@@ -135,8 +135,8 @@ function spawnShape() {
   const randomVariation = viewportMin * 0.03;
 
   const angle = Math.random() * Math.PI * 2;
-  const minRadius = viewportMin * 0.35;
-  const maxRadius = viewportMin * 0.45;
+  const minRadius = viewportMin * 0.55;
+  const maxRadius = viewportMin * 0.70;
   const radius = minRadius + Math.random() * (maxRadius - minRadius);
 
   const difficulty = getDifficulty();
@@ -153,9 +153,11 @@ function spawnShape() {
 }
 
 let lastSpawn = 0;
+
 function handleSpawn(delta) {
   lastSpawn += delta;
   const spawnInterval = 2000 - 1300 * getDifficulty();
+
   if (lastSpawn >= spawnInterval) {
     spawnShape();
     lastSpawn = 0;
