@@ -161,7 +161,8 @@
       position: fixed;
       inset: 0;
       background: rgba(0, 0, 0, 0.85);
-      display: none; /* Começa escondido */
+      display: none;
+      /* Começa escondido */
       align-items: center;
       justify-content: center;
       z-index: 110;
@@ -195,7 +196,8 @@
       border-color: #999;
     }
 
-    #start-button, #restart-button {
+    #start-button,
+    #restart-button {
       width: 100%;
       max-width: 250px;
     }
@@ -213,6 +215,19 @@
     .message.success {
       color: #4dff88;
     }
+
+    #gameOverRankingList li {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 10px;
+    border-bottom: 1px solid #eee;
+    font-size: 14px;
+  }
+
+  #gameOverRankingList li.highlight {
+    background: #27F58722;
+    font-weight: bold;
+  }
   </style>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -239,8 +254,8 @@
         <p>Proteja-se desenhando as formas que aparecem!</p>
 
         <div style="margin: 20px 0;">
-          <input type="text" id="player-name-input" placeholder="Digite seu nome" 
-                style="padding: 12px; width: 80%; border-radius: 10px; border: 1px solid #ccc; font-size: 16px; text-align: center;">
+          <input type="text" id="player-name-input" placeholder="Digite seu nome"
+            style="padding: 12px; width: 80%; border-radius: 10px; border: 1px solid #ccc; font-size: 16px; text-align: center;">
         </div>
 
         <div class="instructions">
@@ -256,10 +271,24 @@
     <div id="game-over-screen" style="display: none;">
       <div class="popup">
         <h1>Fim de Jogo!</h1>
+
         <p id="final-score-text">Você fez 0 pontos</p>
+
+        <div id="game-over-ranking">
+          <h3 style="margin-bottom:10px;">🏆 Top Jogadores</h3>
+          <ul id="gameOverRankingList" style="
+        list-style: none;
+        padding: 0;
+        margin: 0 0 20px 0;
+        max-height: 180px;
+        overflow-y: auto;
+      ">
+            <li style="color:#999;">Carregando...</li>
+          </ul>
+        </div>
+
         <div style="display: flex; flex-direction: column; gap: 10px; align-items: center;">
           <button id="restart-button">JOGAR NOVAMENTE</button>
-          <button class="btn-ranking" onclick="window.location.href='ranking.html'">Ver maiores pontuadores</button>
         </div>
       </div>
     </div>
