@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ranking</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      background: linear-gradient(180deg, #1a1a2e, #16213e);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      font-size: 32px;
+      text-shadow: 2px 2px 0 #000;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 16px;
+      padding: 20px;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    .ranking-list {
+      list-style: none;
+      width: 100%;
+    }
+
+    .ranking-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      margin-bottom: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      font-size: 18px;
+    }
+
+    .pos {
+      font-weight: bold;
+      width: 40px;
+    }
+
+    .name {
+      flex: 1;
+      text-align: left;
+      padding-left: 10px;
+    }
+
+    .score {
+      font-weight: bold;
+      color: #ffd166;
+    }
+
+    .actions {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #ffd166;
+      color: #000;
+    }
+
+    button:hover {
+      filter: brightness(1.1);
+    }
+
+    .empty {
+      text-align: center;
+      opacity: 0.7;
+      padding: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🏆 Ranking</h1>
+
+  <div class="card">
+    <ul id="rankingList" class="ranking-list">
+      <li class="empty">Carregando...</li>
+    </ul>
+
+    <div class="actions">
+      <button onclick="goBack()">Voltar</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    const supabaseUrl = "process.env.SUPABASE_URL";
+    const supabaseKey = "process.env.SUPABASE_KEY";
+
+    const supabaseClient = supabase.createClient(
+      supabaseUrl,
+      supabaseKey
+    );
+
+  let loading = false;
+
+  async function loadRanking() {
+    if (loading) return;
+    loading = true;
+
+    const list = document.getElementById("rankingList");
+    list.innerHTML = '<li class="empty">Carregando...</li>';
+
+    const { data, error } = await supabaseClient
+      .from("scores")
+      .select("player_name, score")
+      .order("score", { ascending: false })
+      .limit(10);
+
+    loading = false;
+
+    if (error) {
+      list.innerHTML = '<li class="empty">Erro ao carregar ranking</li>';
+      console.error(error);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      list.innerHTML = '<li class="empty">Nenhum score ainda</li>';
+      return;
+    }
+
+    list.innerHTML = "";
+
+    data.forEach((item, index) => {
+      const li = document.createElement("li");
+      li.className = "ranking-item";
+
+      li.innerHTML = `
+        <span class="pos">#${index + 1}</span>
+        <span class="name">${item.player_name}</span>
+        <span class="score">${item.score}</span>
+      `;
+
+      list.appendChild(li);
+    });
+  }
+
+    function goBack() {
+      window.location.href = "index.html";
+    }
+
+    loadRanking();
+
+    setInterval(() => {
+      loadRanking();
+    }, 5000);
+  </script>
+</body>
+</html>
