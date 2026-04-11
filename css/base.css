@@ -1,0 +1,47 @@
+:root {
+  --color-primary: #ff3b3b;
+  --color-accent: #27F587;
+  --color-dark: #0f0f0f;
+  --color-overlay: rgba(0, 0, 0, 0.85);
+  --color-surface: rgba(255, 255, 255, 0.95);
+  --radius-popup: 20px;
+  --radius-btn: 50px;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  touch-action: none;
+  background: var(--color-dark);
+}
+
+canvas {
+  display: block;
+  touch-action: none;
+  background: #fafafa;
+}
+
+#spriteSheet {
+  display: none;
+}
+
+#rotate-warning {
+  position: fixed;
+  inset: 0;
+  background: #111;
+  color: white;
+  font-size: 24px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  z-index: 10;
+}
+
+@media screen and (orientation: portrait) {
+  #game         { display: none; }
+  #hud          { display: none; }
+  #rotate-warning { display: flex; }
+}
